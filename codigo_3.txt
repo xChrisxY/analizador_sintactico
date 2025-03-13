@@ -1,0 +1,4 @@
+var 2x;
+var y;
+y = 10;
+print(y + * 5);

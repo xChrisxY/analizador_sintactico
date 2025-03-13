@@ -1,0 +1,16 @@
+var a;
+var b;
+var c;
+input(a);
+input(b);
+if (a > 0) {
+    if (b > 0) {
+        c = a + b;
+    } else {
+        c = a - b;
+    }
+    while (c > 0) {
+        print(c);
+        c = c - 1;
+    }
+}

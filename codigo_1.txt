@@ -1,0 +1,18 @@
+var y = 20;
+
+if (x < y) {
+    print(x);
+} else {
+    print(y);
+}
+
+while (x > 0) {
+    x = x - 1;
+    print(x);
+}
+
+for (var i = 0; i < 5; i = i + 1) {
+    y = y + i;
+}
+
+input(z);

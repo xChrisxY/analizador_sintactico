@@ -1,0 +1,16 @@
+var x;
+var y;
+x = 10;
+y = 5;
+if (x > y) {
+    print(x + y);
+    print("x es mayor que y");
+} else {
+    print(y - x);
+}
+while (x > 0) {
+    x = x - 1;
+    print(x);
+}
+input(y);
+print(x * y / 2);
