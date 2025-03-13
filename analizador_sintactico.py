@@ -1,5 +1,9 @@
 import re
 from enum import Enum
+import tkinter as tk 
+from tkinter import filedialog, scrolledtext
+import sys
+import io
 
 # Definición de tokens
 class TokenType(Enum):
@@ -432,22 +436,80 @@ def read_file():
 
     return code
 
-# Función principal
-def main():
+class ParserGUI:
+    def __init__(self, master):
+        self.master = master
+        master.title("Analizador Sintáctico")
+        self.create_widgets()
 
-    code = read_file()
-    
-    lexer = Lexer(code)
-    parser = Parser(lexer)
-    
-    try:
-        result = parser.parse()
-        if result:
-            print("El código es sintácticamente correcto.")
-        else:
-            print("Hay errores sintácticos en el código.")
-    except Exception as e:
-        print(f"Error: {e}")
+    def create_widgets(self):
+        # Configurar el área de texto para entrada de código
+        self.input_text = tk.Text(self.master, wrap=tk.WORD, height=20)
+        self.input_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # Frame para botones
+        button_frame = tk.Frame(self.master)
+        button_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # Botones
+        self.load_btn = tk.Button(button_frame, text="Cargar Archivo", command=self.load_file)
+        self.load_btn.pack(side=tk.LEFT, padx=5)
+
+        self.analyze_btn = tk.Button(button_frame, text="Analizar", command=self.analyze_code)
+        self.analyze_btn.pack(side=tk.LEFT, padx=5)
+
+        self.clear_btn = tk.Button(button_frame, text="Limpiar", command=self.clear_all)
+        self.clear_btn.pack(side=tk.LEFT, padx=5)
+
+        # Área de salida con scroll
+        self.output_area = scrolledtext.ScrolledText(self.master, wrap=tk.WORD, state=tk.DISABLED)
+        self.output_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+    def load_file(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
+        if file_path:
+            with open(file_path, 'r') as f:
+                content = f.read()
+                self.input_text.delete(1.0, tk.END)
+                self.input_text.insert(tk.END, content)
+
+    def clear_all(self):
+        self.input_text.delete(1.0, tk.END)
+        self.output_area.config(state=tk.NORMAL)
+        self.output_area.delete(1.0, tk.END)
+        self.output_area.config(state=tk.DISABLED)
+
+    def analyze_code(self):
+        code = self.input_text.get(1.0, tk.END)
+        
+        # Redirigir la salida estándar para capturar los prints
+        old_stdout = sys.stdout
+        sys.stdout = buffer = io.StringIO()
+
+        try:
+            lexer = Lexer(code)
+            parser = Parser(lexer)
+            result = parser.parse()
+            if result:
+                print("\nAnálisis completado: Código válido")
+            else:
+                print("\nAnálisis completado: Se encontraron errores")
+        except Exception as e:
+            print(f"\nError durante el análisis: {str(e)}")
+        finally:
+            sys.stdout = old_stdout
+
+        # Mostrar resultados en el área de salida
+        output = buffer.getvalue()
+        self.output_area.config(state=tk.NORMAL)
+        self.output_area.delete(1.0, tk.END)
+        self.output_area.insert(tk.END, output)
+        self.output_area.config(state=tk.DISABLED)
+
+def main():
+    root = tk.Tk()
+    app = ParserGUI(root)
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
