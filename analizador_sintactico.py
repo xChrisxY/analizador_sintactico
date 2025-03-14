@@ -1,15 +1,18 @@
 import re
 from enum import Enum
 import tkinter as tk 
-from tkinter import filedialog, scrolledtext
+from tkinter import filedialog, scrolledtext, ttk
 import sys
 import io
+from tkinter import font
+import os
 
+# Mantenemos todas las clases existentes (TokenType, Token, Lexer, ParseTable, Parser)
 # Definición de tokens
 class TokenType(Enum):
     IDENTIFIER = 1
     NUMBER = 2
-    STRING = 3  # Nuevo tipo para cadenas entre comillas dobles
+    STRING = 3
     PLUS = 4
     MINUS = 5
     MULTIPLY = 6
@@ -436,79 +439,311 @@ def read_file():
 
     return code
 
-class ParserGUI:
+# Nueva versión mejorada de la interfaz gráfica
+class ModernParserGUI:
     def __init__(self, master):
         self.master = master
         master.title("Analizador Sintáctico")
+        
+        # Configurar estilos y temas
+        self.setup_styles()
+        
+        # Configurar la ventana principal
+        master.geometry("900x700")
+        master.minsize(700, 500)
+        
+        # Crear la interfaz
         self.create_widgets()
+        
+        # Variable para la última ruta de archivo utilizada
+        self.last_directory = os.path.expanduser("~")
+        
+        # Configurar colores para resaltado de sintaxis
+        self.setup_syntax_highlighting()
+
+    def setup_styles(self):
+        # Crear un estilo personalizado
+        self.style = ttk.Style()
+        
+        # Configurar tema
+        if "azure" in self.style.theme_names():
+            self.style.theme_use("azure")
+        elif "clam" in self.style.theme_names():
+            self.style.theme_use("clam")
+        
+        # Colores
+        self.bg_color = "#f5f5f5"
+        self.accent_color = "#3498db"
+        self.success_color = "#2ecc71"
+        self.error_color = "#e74c3c"
+        self.text_color = "#2c3e50"
+        self.editor_bg = "#ffffff"
+        self.output_bg = "#f9f9f9"
+        
+        # Configurar fuentes
+        self.default_font = font.nametofont("TkDefaultFont")
+        self.default_font.configure(family="Segoe UI", size=10)
+        
+        self.code_font = font.Font(family="Consolas", size=11)
+        self.heading_font = font.Font(family="Segoe UI", size=12, weight="bold")
+        
+        # Configurar estilos de los botones
+        self.style.configure("TButton", font=self.default_font, padding=6)
+        self.style.configure("Accent.TButton", background=self.accent_color, foreground="white")
+        self.style.configure("Success.TButton", background=self.success_color, foreground="white")
+        
+        # Configurar estilos de las etiquetas
+        self.style.configure("TLabel", font=self.default_font, background=self.bg_color)
+        self.style.configure("Heading.TLabel", font=self.heading_font)
+        
+        # Configurar estilos de los frames
+        self.style.configure("TFrame", background=self.bg_color)
+        
+        # Configurar el notebook (pestañas)
+        self.style.configure("TNotebook", background=self.bg_color, tabmargins=[2, 5, 2, 0])
+        self.style.configure("TNotebook.Tab", font=self.default_font, padding=[10, 4])
+
+    def setup_syntax_highlighting(self):
+        # Configurar etiquetas para resaltado de sintaxis
+        self.keyword_tags = ["if", "else", "while", "for", "print", "input", "var"]
+        self.operator_tags = ["+", "-", "*", "/", "=", "==", "<", ">", ";"]
+        
+        # Colores para los diferentes tipos de tokens
+        self.keyword_color = "#8e44ad"  # Morado para palabras clave
+        self.string_color = "#27ae60"   # Verde para cadenas
+        self.number_color = "#e67e22"   # Naranja para números
+        self.operator_color = "#c0392b" # Rojo para operadores
+        self.comment_color = "#7f8c8d"  # Gris para comentarios
+
+    def highlight_syntax(self, event=None):
+        # Limpiar resaltado previo
+        for tag in self.keyword_tags + ["string", "number", "operator", "comment"]:
+            self.input_text.tag_remove(tag, "1.0", "end")
+        
+        # Configurar colores para los diferentes tipos de tokens
+        self.input_text.tag_configure("keyword", foreground=self.keyword_color, font=(self.code_font.cget("family"), self.code_font.cget("size"), "bold"))
+        self.input_text.tag_configure("string", foreground=self.string_color)
+        self.input_text.tag_configure("number", foreground=self.number_color)
+        self.input_text.tag_configure("operator", foreground=self.operator_color)
+        self.input_text.tag_configure("comment", foreground=self.comment_color, font=(self.code_font.cget("family"), self.code_font.cget("size"), "italic"))
+        
+        # Obtener todo el texto
+        text = self.input_text.get("1.0", "end-1c")
+        lines = text.split("\n")
+        
+        for i, line in enumerate(lines):
+            line_num = i + 1
+            
+            # Resaltar palabras clave
+            for keyword in self.keyword_tags:
+                pattern = r"\b" + keyword + r"\b"
+                for match in re.finditer(pattern, line):
+                    start_idx = match.start()
+                    end_idx = match.end()
+                    self.input_text.tag_add("keyword", f"{line_num}.{start_idx}", f"{line_num}.{end_idx}")
+            
+            # Resaltar cadenas
+            for match in re.finditer(r'"[^"]*"', line):
+                start_idx = match.start()
+                end_idx = match.end()
+                self.input_text.tag_add("string", f"{line_num}.{start_idx}", f"{line_num}.{end_idx}")
+            
+            # Resaltar números
+            for match in re.finditer(r'\b\d+(\.\d+)?\b', line):
+                start_idx = match.start()
+                end_idx = match.end()
+                self.input_text.tag_add("number", f"{line_num}.{start_idx}", f"{line_num}.{end_idx}")
+            
+            # Resaltar operadores
+            for op in self.operator_tags:
+                for match in re.finditer(re.escape(op), line):
+                    start_idx = match.start()
+                    end_idx = match.end()
+                    self.input_text.tag_add("operator", f"{line_num}.{start_idx}", f"{line_num}.{end_idx}")
+            
+            # Resaltar comentarios (si se añaden en el futuro)
+            for match in re.finditer(r'//.*$', line):
+                start_idx = match.start()
+                end_idx = match.end()
+                self.input_text.tag_add("comment", f"{line_num}.{start_idx}", f"{line_num}.{end_idx}")
 
     def create_widgets(self):
-        # Configurar el área de texto para entrada de código
-        self.input_text = tk.Text(self.master, wrap=tk.WORD, height=20)
-        self.input_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        # Frame para botones
-        button_frame = tk.Frame(self.master)
-        button_frame.pack(fill=tk.X, padx=10, pady=5)
-
-        # Botones
-        self.load_btn = tk.Button(button_frame, text="Cargar Archivo", command=self.load_file)
-        self.load_btn.pack(side=tk.LEFT, padx=5)
-
-        self.analyze_btn = tk.Button(button_frame, text="Analizar", command=self.analyze_code)
+        # Crear contenedor principal
+        main_container = ttk.Frame(self.master, style="TFrame")
+        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Título de la aplicación
+        header_frame = ttk.Frame(main_container, style="TFrame")
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        title_label = ttk.Label(header_frame, text="Analizador Sintáctico", style="Heading.TLabel")
+        title_label.pack(side=tk.LEFT, pady=5)
+        
+        # Notebook (pestañas) para organizar la interfaz
+        self.notebook = ttk.Notebook(main_container)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Pestaña de Editor
+        editor_frame = ttk.Frame(self.notebook, style="TFrame")
+        self.notebook.add(editor_frame, text="Editor")
+        
+        # Pestaña de Resultados
+        output_frame = ttk.Frame(self.notebook, style="TFrame")
+        self.notebook.add(output_frame, text="Resultados")
+        
+        # Configurar el área de texto para entrada de código con resaltado de línea actual
+        editor_label = ttk.Label(editor_frame, text="Código Fuente:", style="TLabel")
+        editor_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        # Frame para el editor con barra de números de línea
+        editor_container = ttk.Frame(editor_frame)
+        editor_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Área de números de línea
+        self.line_numbers = tk.Text(editor_container, width=4, padx=3, pady=5, takefocus=0,
+                               bg="#f0f0f0", fg="#606060", border=0, font=self.code_font,
+                               state=tk.DISABLED)
+        self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
+        
+        # Editor principal
+        self.input_text = tk.Text(editor_container, wrap=tk.NONE, padx=5, pady=5,
+                             bg=self.editor_bg, fg=self.text_color, insertbackground=self.text_color,
+                             selectbackground=self.accent_color, selectforeground="white",
+                             font=self.code_font, undo=True, maxundo=100)
+        self.input_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Agregar scrollbars horizontales y verticales al editor
+        y_scroll = ttk.Scrollbar(editor_container, orient=tk.VERTICAL, command=self.input_text.yview)
+        y_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.input_text.configure(yscrollcommand=y_scroll.set)
+        
+        x_scroll = ttk.Scrollbar(editor_frame, orient=tk.HORIZONTAL, command=self.input_text.xview)
+        x_scroll.pack(side=tk.BOTTOM, fill=tk.X)
+        self.input_text.configure(xscrollcommand=x_scroll.set)
+        
+        # Vincular eventos para resaltado de sintaxis y actualización de números de línea
+        self.input_text.bind("<KeyRelease>", self.highlight_syntax)
+        self.input_text.bind("<KeyRelease>", self.update_line_numbers, add="+")
+        self.input_text.bind("<MouseWheel>", self.update_line_numbers)
+        
+        # Frame para botones de acción
+        button_frame = ttk.Frame(editor_frame, style="TFrame")
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        # Botones de acción
+        self.load_btn = ttk.Button(button_frame, text="Cargar Archivo", command=self.load_file)
+        self.load_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.save_btn = ttk.Button(button_frame, text="Guardar Archivo", command=self.save_file)
+        self.save_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.analyze_btn = ttk.Button(button_frame, text="Analizar Código", style="Accent.TButton", command=self.analyze_code)
         self.analyze_btn.pack(side=tk.LEFT, padx=5)
-
-        self.clear_btn = tk.Button(button_frame, text="Limpiar", command=self.clear_all)
+        
+        self.clear_btn = ttk.Button(button_frame, text="Limpiar Editor", command=self.clear_editor)
         self.clear_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Configurar el área de salida de resultados
+        output_label = ttk.Label(output_frame, text="Resultados del Análisis:", style="TLabel")
+        output_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        # Área de resultados con scroll
+        self.output_area = scrolledtext.ScrolledText(output_frame, wrap=tk.WORD, padx=10, pady=10,
+                                                bg=self.output_bg, fg=self.text_color, font=self.code_font)
+        self.output_area.pack(fill=tk.BOTH, expand=True)
+        
+        # Botón para limpiar resultados
+        self.clear_output_btn = ttk.Button(output_frame, text="Limpiar Resultados", command=self.clear_output)
+        self.clear_output_btn.pack(anchor=tk.E, pady=10)
+        
+        # Barra de estado
+        self.status_var = tk.StringVar()
+        self.status_var.set("Listo para analizar código")
+        self.status_bar = ttk.Label(main_container, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+                # Barra de estado
+        self.status_var = tk.StringVar()
+        self.status_var.set("Listo para analizar código")
+        self.status_bar = ttk.Label(main_container, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        self.status_bar.pack(fill=tk.X, pady=(10, 0))
 
-        # Área de salida con scroll
-        self.output_area = scrolledtext.ScrolledText(self.master, wrap=tk.WORD, state=tk.DISABLED)
-        self.output_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+    def update_line_numbers(self, event=None):
+        """Actualiza los números de línea en el editor."""
+        lines = self.input_text.get("1.0", "end-1c").split("\n")
+        line_numbers_text = "\n".join(str(i) for i in range(1, len(lines) + 1))
+        self.line_numbers.config(state=tk.NORMAL)
+        self.line_numbers.delete("1.0", "end")
+        self.line_numbers.insert("1.0", line_numbers_text)
+        self.line_numbers.config(state=tk.DISABLED)
 
     def load_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
+        """Carga un archivo de código en el editor."""
+        file_path = filedialog.askopenfilename(
+            initialdir=self.last_directory,
+            title="Seleccionar archivo",
+            filetypes=(("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*"))
+        )
+        
         if file_path:
-            with open(file_path, 'r') as f:
-                content = f.read()
-                self.input_text.delete(1.0, tk.END)
-                self.input_text.insert(tk.END, content)
+            self.last_directory = os.path.dirname(file_path)
+            with open(file_path, "r") as file:
+                code = file.read()
+                self.input_text.delete("1.0", "end")
+                self.input_text.insert("1.0", code)
+                self.update_line_numbers()
+                self.status_var.set(f"Archivo cargado: {os.path.basename(file_path)}")
 
-    def clear_all(self):
-        self.input_text.delete(1.0, tk.END)
-        self.output_area.config(state=tk.NORMAL)
-        self.output_area.delete(1.0, tk.END)
-        self.output_area.config(state=tk.DISABLED)
+    def save_file(self):
+        """Guarda el contenido del editor en un archivo."""
+        file_path = filedialog.asksaveasfilename(
+            initialdir=self.last_directory,
+            title="Guardar archivo",
+            filetypes=(("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*"))
+        )
+        
+        if file_path:
+            self.last_directory = os.path.dirname(file_path)
+            with open(file_path, "w") as file:
+                file.write(self.input_text.get("1.0", "end-1c"))
+                self.status_var.set(f"Archivo guardado: {os.path.basename(file_path)}")
 
     def analyze_code(self):
-        code = self.input_text.get(1.0, tk.END)
+        """Analiza el código ingresado en el editor."""
+        code = self.input_text.get("1.0", "end-1c")
+        if not code.strip():
+            self.status_var.set("Error: No hay código para analizar.")
+            return
         
-        # Redirigir la salida estándar para capturar los prints
-        old_stdout = sys.stdout
-        sys.stdout = buffer = io.StringIO()
-
         try:
             lexer = Lexer(code)
             parser = Parser(lexer)
             result = parser.parse()
+            
             if result:
-                print("\nAnálisis completado: Código válido")
+                self.output_area.insert("end", "Análisis completado con éxito!\n")
+                self.status_var.set("Análisis completado con éxito.")
             else:
-                print("\nAnálisis completado: Se encontraron errores")
+                self.output_area.insert("end", "Error durante el análisis.\n")
+                self.status_var.set("Error durante el análisis.")
+        
         except Exception as e:
-            print(f"\nError durante el análisis: {str(e)}")
-        finally:
-            sys.stdout = old_stdout
+            self.output_area.insert("end", f"Error: {str(e)}\n")
+            self.status_var.set(f"Error: {str(e)}")
 
-        # Mostrar resultados en el área de salida
-        output = buffer.getvalue()
-        self.output_area.config(state=tk.NORMAL)
-        self.output_area.delete(1.0, tk.END)
-        self.output_area.insert(tk.END, output)
-        self.output_area.config(state=tk.DISABLED)
+    def clear_editor(self):
+        """Limpia el contenido del editor."""
+        self.input_text.delete("1.0", "end")
+        self.update_line_numbers()
+        self.status_var.set("Editor limpiado.")
 
+    def clear_output(self):
+        """Limpia el área de resultados."""
+        self.output_area.delete("1.0", "end")
+        self.status_var.set("Resultados limpiados.")
+
+# Función principal para ejecutar la aplicación
 def main():
     root = tk.Tk()
-    app = ParserGUI(root)
+    app = ModernParserGUI(root)
     root.mainloop()
 
 if __name__ == "__main__":
